@@ -1,7 +1,12 @@
 from rest_framework import serializers
+from .models import *
 
-class ClientSerializer(serializers.Serializer):
-    phone = serializers.IntegerField()
-    mnc = serializers.CharField(max_length=5)
-    filter = serializers.ReadOnlyField(source='filter.prop')
-    timezone = serializers.CharField(max_length=32)
+class ClientsSerializer(serializers.ModelSerializer):
+    # filter = serializers.ReadOnlyField(source='filter.prop')
+    class Meta:
+        model = Client
+        fields = ('id',
+                  'phone',
+                  'mnc',
+                  'filter',
+                  'timezone')
