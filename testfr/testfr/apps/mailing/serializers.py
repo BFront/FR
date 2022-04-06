@@ -1,12 +1,17 @@
 from rest_framework import serializers
-from .models import *
+from .models import Client
 
-class ClientsSerializer(serializers.ModelSerializer):
-    # filter = serializers.ReadOnlyField(source='filter.prop')
-    class Meta:
-        model = Client
-        fields = ('id',
-                  'phone',
-                  'mnc',
-                  'filter',
-                  'timezone')
+class ClientSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=120)
+    description = serializers.CharField()
+    body = serializers.CharField()
+    author_id = serializers.IntegerField()
+    def create(self, validated_data):
+        return Client.objects.create(**validated_data)
+    def update(self, instance, validated_data):
+        instance.title = validated_data.get('title', instance.title)
+        instance.description = validated_data.get('description', instance.description)
+        instance.body = validated_data.get('body', instance.body)
+        instance.author_id = validated_data.get('author_id', instance.author_id)
+        instance.save()
+        return instance
