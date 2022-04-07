@@ -1,6 +1,7 @@
 from django.urls import path
-from . import views
-urlpatterns =[
-    path('api/clients/', views.snippet_list),
-    path('api/client/<int:pk>', views.snippet_detail),
+from .views import ClientView
+app_name = "mailing"
+urlpatterns = [
+    path('client/', ClientView.as_view()),
+    path('client/<int:pk>', ClientView.as_view())
 ]
