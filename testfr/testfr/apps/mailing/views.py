@@ -1,3 +1,5 @@
+import datetime
+
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -11,11 +13,17 @@ def startMailing(request, pk):
         mailing = Mailing.objects.get(pk=pk)
     except Mailing.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
-
+    s = {}
     filter = mailing.filter
+    date_end = mailing.end
+    date_now = datetime.datetime.now()
+    print(date_end)
+    print(date_now)
+    if date_end > date_now:
+        print("+")
     #check date
 
-    s = {}
+
     clients = Client.objects.filter(tag=filter)
     # for q in clients:
         # Message.objects.create(clients_id=q.id, mailings_id=pk, status_id=1)
