@@ -17,8 +17,9 @@ def startMailing(request, pk):
     filter = mailing.filter
     date_end = mailing.end
     date_now = datetime.datetime.now()
-    print(date_end)
-    print(date_now)
+
+    print(date_end.strftime("%d.%m.%y %I:%M"))
+    print(date_now.strftime("%d.%m.%y %I:%M"))
     if date_end > date_now:
         print("+")
     #check date
