@@ -7,6 +7,16 @@ from rest_framework.response import Response
 from django.http import JsonResponse
 from .serializers import *
 
+def cron(request):
+
+    mails = Mailing.objects.filter(start__lte = datetime.datetime.now(), end__gte = datetime.datetime.now())
+    s = {}
+    for q in range(0, mails.count()):
+        print(mails[q].start)
+        s['start'] = str(mails[q].start)
+        s['stop'] = str(mails[q].end)
+    return JsonResponse(s)
+    # return HttpResponse(status=200)
 
 def startMailing(request, pk):
     try:

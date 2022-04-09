@@ -11,5 +11,6 @@ urlpatterns = [
     path('mailing/<int:pk>', views.mailing_detail),
     path('messages/', views.messages_list),
     path('message/<int:pk>', views.message_detail),
-    path('start/<int:pk>', views.startMailing)
+    path('start/<int:pk>', views.cron),
+    path('cron/', views.cron)
 ]
