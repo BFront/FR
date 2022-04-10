@@ -1,5 +1,6 @@
-import datetime
-
+import time
+from datetime import datetime
+import requests
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -7,56 +8,57 @@ from rest_framework.response import Response
 from django.http import JsonResponse
 from .serializers import *
 
+class BearerAuth(requests.auth.AuthBase):
+    def __init__(self, token):
+        self.token = token
+    def __call__(self, r):
+        r.headers["authorization"] = "Bearer " + self.token
+        r.headers["accept"] = "application/json"
+        r.headers["Content-Type"] = "application/json"
+        return r
+
 def cron(request):
-
-    mails = Mailing.objects.filter(start__lte = datetime.datetime.now(), end__gte = datetime.datetime.now())
-    s = {}
+    mails = Mailing.objects.filter(start__lte = datetime.now(), end__gte = datetime.now())
     for q in range(0, mails.count()):
-        print(mails[q].start)
-        s['start'] = str(mails[q].start)
-        s['stop'] = str(mails[q].end)
-    return JsonResponse(s)
-    # return HttpResponse(status=200)
+        otvet = startMessages(request, mails[q].id, mails[q].filter_id)
+    return otvet
 
-def startMailing(request, pk):
-    try:
-        mailing = Mailing.objects.get(pk=pk)
-    except Mailing.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    s = {}
-    filter = mailing.filter
-    date_end = mailing.end
-    date_now = datetime.datetime.now()
-
-    print(date_end.strftime("%d.%m.%y %I:%M"))
-    print(date_now.strftime("%d.%m.%y %I:%M"))
-    if date_end > date_now:
-        print("+")
-    #check date
-
-
+def startMessages(request, pk, filter):
     clients = Client.objects.filter(tag=filter)
-    # for q in clients:
-        # Message.objects.create(clients_id=q.id, mailings_id=pk, status_id=1)
+    mailing = Mailing.objects.get(pk=pk)
+    msgid = 1
+    for q in clients:
+        check = Message.objects.filter(clients_id=q.id, mailings_id=pk, status_id=1).count()
+        print(check)
+        if check == 0:
+            # timing = round(time.time()-1649570000)
+            data = {"id": int(msgid), "phone": int(q.phone), "text": str(mailing.text)}
+            response = requests.post("https://probe.fbrq.cloud/v1/send/"+str(msgid), json=data, auth=BearerAuth(
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2ODA3NzIxODksImlzcyI6ImZhYnJpcXVlIiwibmFtZSI6IkBqdWRtZW50X3RnIn0.7-omHSNXaIuP9RT1-HzMhoO9Vd9qQAY-_ftrSVreYxM'))
 
-    return JsonResponse(s)
+            if response.status_code == 200:
+                status = 1 #STATUS OK
+                msgid += 1
+            else:
+                status = 4 #STATUS ERROR
+            print(f'{msgid} - {response.status_code} - {response.request} - {data}')
+            check_err = Message.objects.filter(clients_id=q.id, mailings_id=pk, status_id=status).count()
+            if check_err == 0:
+                Message.objects.create(clients_id=q.id, mailings_id=pk, status_id=status)
+    return HttpResponse(status=200)
+
 @api_view(['GET',])
 def statistic_full(request, type):
     statistic = {}
     if request.method == 'GET':
         if type == 'mailings':
             mailings = Mailing.objects.all()
-            messages= Message.objects.all()
-            messages_out = Message.objects.filter(status=1)
-            messages_sended = Message.objects.filter(status=2)
-            messages_read = Message.objects.filter(status=3)
-            messages_error = Message.objects.filter(status=4)
+            messages_ok = Message.objects.filter(status=1).count()
+            messages_error = Message.objects.filter(status=4).count()
             statistic['mailings_all'] = mailings.count()
-            statistic['messages_all'] = messages.count()
-            statistic['messages_out'] = messages_out.count()
-            statistic['messages_sended'] = messages_sended.count()
-            statistic['messages_read'] = messages_read.count()
-            statistic['messages_error'] = messages_error.count()
+            statistic['messages_all'] = messages_ok+messages_error
+            statistic['messages_ok'] = messages_ok
+            statistic['messages_error'] = messages_error
         elif type == 'messages':
             s = Message.objects.all().count()
             statistic['messages'] = s
@@ -71,29 +73,20 @@ def statistic_detail(request, type, pk):
     try:
         messages = Message.objects.filter(mailings_id=pk)
         messages_out = Message.objects.filter(mailings_id=pk, status=1).count()
-        messages_sended = Message.objects.filter(mailings_id=pk, status=2).count()
-        messages_read = Message.objects.filter(mailings_id=pk, status=3).count()
         messages_error = Message.objects.filter(mailings_id=pk, status=4).count()
         mailing = Mailing.objects.get(pk=pk)
     except Message.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     statistic = {}
     if request.method == 'GET':
-        if type == 'mailings':
+        if type == 'mailing':
             statistic['mailing_start'] = str(mailing.start)
             statistic['mailing_end'] = str(mailing.end)
             statistic['mailing_filter'] = str(mailing.filter)
             statistic['mailing_text'] = mailing.text
-            statistic['messages_out'] = messages_out
-            statistic['messages_sended'] = messages_sended
-            statistic['messages_read'] = messages_read
+            statistic['messages_all'] = messages_out+messages_error
+            statistic['messages_ok'] = messages_out
             statistic['messages_error'] = messages_error
-        elif type == 'messages':
-            s = Message.objects.all().count()
-            statistic['messages'] = s
-        elif type == 'clients':
-            s = Client.objects.all().count()
-            statistic['clients'] = s
         else:
             statistic['err'] = 'Unknow TYPE'
     return JsonResponse(statistic)
